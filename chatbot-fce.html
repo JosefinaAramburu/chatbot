@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asistente FCE Austral</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+            max-height: 800px;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .logout-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .setup-screen {
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            justify-content: center;
+            flex: 1;
+        }
+
+        .setup-screen.hidden {
+            display: none;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .info-text {
+            background: #f0f0f0;
+            border-left: 4px solid #667eea;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 12px;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-container.hidden {
+            display: none;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            word-wrap: break-word;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .message.assistant .message-content {
+            background: #f0f0f0;
+            color: #333;
+            border-radius: 16px 16px 16px 4px;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 16px 16px 4px 16px;
+        }
+
+        .typing {
+            display: flex;
+            gap: 4px;
+            padding: 12px 16px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #999;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% { opacity: 0.3; }
+            30% { opacity: 1; }
+        }
+
+        .input-area {
+            border-top: 1px solid #e0e0e0;
+            padding: 16px 20px;
+            display: flex;
+            gap: 12px;
+            background: white;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 24px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .input-area input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .input-area button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 24px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+
+        .input-area button:hover:not(:disabled) {
+            transform: scale(1.05);
+        }
+
+        .input-area button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Setup Screen -->
+        <div class="setup-screen" id="setupScreen">
+            <div class="header">
+                <h1>Asistente FCE Austral</h1>
+                <p>Consultas administrativas 24/7</p>
+            </div>
+            <div style="padding: 0 20px; flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                <div class="info-text">
+                    Para comenzar, ingresa tu nombre y tu API Key de Claude (se guarda solo en tu navegador, no se comparte).
+                </div>
+                <form id="setupForm" style="display: flex; flex-direction: column; gap: 16px;">
+                    <div class="form-group">
+                        <label for="studentName">Tu nombre</label>
+                        <input type="text" id="studentName" placeholder="Ej: María" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="apiKey">API Key de Claude</label>
+                        <input type="password" id="apiKey" placeholder="sk-ant-..." required>
+                    </div>
+                    <button type="submit" class="submit-btn">Comenzar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Chat Screen -->
+        <div class="chat-container hidden" id="chatContainer">
+            <div class="header">
+                <h1>Asistente FCE Austral</h1>
+                <p id="studentGreeting"></p>
+                <button class="logout-btn" onclick="logout()">Cerrar sesión</button>
+            </div>
+            <div class="messages" id="messages">
+                <div class="message assistant">
+                    <div class="message-content">
+                        Hola 👋 Soy el Asistente de FCE Austral. Puedo ayudarte con dudas sobre reglamento, trámites, correlatividades, asistencia y más. ¿Qué necesitás saber?
+                    </div>
+                </div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="userInput" placeholder="Escribe tu pregunta..." autocomplete="off">
+                <button id="sendButton" onclick="sendMessage()">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const KNOWLEDGE_BASE = `
+# Reglamento y Consultas Frecuentes - FCE Austral
+
+## Asistencia
+- La asistencia mínima requerida es del 75% en la mayoría de las materias
+- Faltas justificadas deben presentarse con documentación
+- La inasistencia reiterada puede derivar en pérdida de regularidad
+
+## Recuperatorios
+- Existe un recuperatorio por materia al final del cuatrimestre
+- Aplica a estudiantes que no alcanzaron la nota mínima (4/10)
+- Se puede hacer aunque hayas aprobado para mejorar nota
+
+## Correlatividades
+- Las materias tienen correlatividades obligatorias
+- Teología Moral es correlativa de Teología Dogmática
+- Algunas requieren tener otras aprobadas previamente
+
+## Trámites y Plazos
+- La inscripción a materias se realiza en períodos específicos
+- Los cambios de comisión se hacen en los primeros días de clase
+- Los certificados se solicitan en secretaría (5-7 días hábiles)
+
+## Requisitos de Título
+- Se deben tener todas las materias aprobadas
+- Se requiere realizar trabajo integrador o seminario según carrera
+- La defensa de tesis puede ser presencial o virtual
+
+## Ayudas Económicas
+- Existen becas para estudiantes con buen desempeño
+- Las becas de financiamiento están disponibles según necesidad
+- Se solicitan en períodos específicos
+
+## Horarios y Comisiones
+- Los horarios varían según materia y cuatrimestre
+- Los cambios requieren autorización de la cátedra
+- Consultar el calendario académico para períodos de inscripción
+
+## Planes de Estudio
+- Los planes vigentes están en secretaría
+- Estudiantes con planes anteriores pueden seguir ese plan
+- Las equivalencias se consultan en secretaría
+
+## Materias por Carrera
+- Digital Business y Public Accounting comparten algunas materias
+- Materias obligatorias según plan de estudios vigente
+- Consultar con secretaría sobre materias optativas y electivas
+`;
+
+        let studentName = '';
+        let apiKey = '';
+        const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbydb3S7Qfoe8-ToDKHD7Afw4G91lp654Vr1E6ZBLjTmy74sxMoMAGVFtMWTd6CmCPRvgg/exec';
+
+        // Setup form
+        document.getElementById('setupForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            studentName = document.getElementById('studentName').value;
+            apiKey = document.getElementById('apiKey').value;
+
+            localStorage.setItem('studentName', studentName);
+            localStorage.setItem('apiKey', apiKey);
+
+            document.getElementById('setupScreen').classList.add('hidden');
+            document.getElementById('chatContainer').classList.remove('hidden');
+            document.getElementById('studentGreeting').textContent = `Hola, ${studentName}`;
+            document.getElementById('userInput').focus();
+        });
+
+        // Restore session
+        window.addEventListener('load', function() {
+            const stored = localStorage.getItem('studentName');
+            if (stored) {
+                studentName = stored;
+                apiKey = localStorage.getItem('apiKey');
+                document.getElementById('setupScreen').classList.add('hidden');
+                document.getElementById('chatContainer').classList.remove('hidden');
+                document.getElementById('studentGreeting').textContent = `Hola, ${studentName}`;
+            }
+        });
+
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            addMessage('user', message);
+            input.value = '';
+
+            const sendButton = document.getElementById('sendButton');
+            sendButton.disabled = true;
+            input.disabled = true;
+
+            const messagesDiv = document.getElementById('messages');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message assistant';
+            typingDiv.innerHTML = '<div class="typing"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+            messagesDiv.appendChild(typingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            try {
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-3-5-haiku-20241022',
+                        max_tokens: 500,
+                        system: `Eres un asistente de atención al estudiante de la Facultad de Ciencias Empresariales de Universidad Austral.
+
+Tu rol es responder preguntas administrativas basándote ÚNICAMENTE en este conocimiento:
+
+${KNOWLEDGE_BASE}
+
+IMPORTANTE:
+- Si la pregunta está cubierta, responde con precisión y claridad
+- Si NO está en el conocimiento, responde: "No tengo información sobre eso. Por favor, contactate con secretaría"
+- Nunca inventes respuestas
+- Responde en español, de forma concisa y amable`,
+                        messages: [{ role: 'user', content: message }]
+                    })
+                });
+
+                if (!response.ok) throw new Error(`Error ${response.status}`);
+
+                const data = await response.json();
+                const botResponse = data.content[0].text;
+
+                typingDiv.remove();
+                addMessage('assistant', botResponse);
+
+                const derived = botResponse.toLowerCase().includes('secretaría') || botResponse.toLowerCase().includes('no tengo información');
+
+                await sendToSheet(message, botResponse, derived);
+
+            } catch (error) {
+                typingDiv.remove();
+                addMessage('assistant', 'Error. Revisa tu API Key.');
+                console.error(error);
+            }
+
+            sendButton.disabled = false;
+            input.disabled = false;
+            input.focus();
+        }
+
+        function addMessage(role, text) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.innerHTML = `<div class="message-content">${escapeHtml(text)}</div>`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        async function sendToSheet(query, response, derived) {
+            try {
+                await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        estudiante: studentName,
+                        consulta: query,
+                        respuesta: response,
+                        derivado: derived ? 'Sí' : 'No',
+                        escribioSecretaria: ''
+                    })
+                });
+            } catch (error) {
+                console.error('Sheet error:', error);
+            }
+        }
+
+        function logout() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && document.getElementById('userInput') === document.activeElement) {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
