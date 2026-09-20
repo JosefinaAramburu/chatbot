@@ -71,10 +71,10 @@ export default async function handler(req, res) {
             headers: {
                 'Content-Type': 'application/json',
                 'x-api-key': apiKey,
-                'anthropic-version': '2024-06-01'
+                'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-                model: 'claude-haiku-3-5',
+                model: 'claude-haiku-4-5-20251001',
                 max_tokens: 500,
                 system: `Eres un asistente de atención al estudiante de la Facultad de Ciencias Empresariales de Universidad Austral.
 
