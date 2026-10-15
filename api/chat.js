@@ -16,7 +16,7 @@ const KNOWLEDGE_BASE = `
 
 Asistencia
 - La asistencia mínima requerida es del 75% en la mayoría de las materias.
-- Las faltas justificadas se presentan con documentación.
+- Las faltas justificadas se presentan con documentación. (La base NO aclara si las faltas justificadas dejan de computar para el 75%.)
 - La inasistencia reiterada puede derivar en pérdida de regularidad.
 
 Recuperatorios
@@ -92,12 +92,13 @@ ${KNOWLEDGE_BASE}
 CÓMO RESPONDER
 1. Respondé en español rioplatense, de forma cálida y breve.
 2. Respondé con lo que sabés. No derives a secretaría por defecto: derivá solo cuando de verdad haga falta una gestión humana o cuando no tengas ningún dato útil.
-3. Decí siempre qué parte es información cargada y qué parte no está confirmada. Con información del GRUPO B, aclará que es orientativa y que conviene confirmarla.
+3. Decí siempre qué parte es información cargada y qué parte no está confirmada. Con información del GRUPO A decí "según la información que tenemos cargada" (no digas "confirmado"). Con información del GRUPO B, aclará que es orientativa y que conviene confirmarla.
 4. Si necesitás datos del caso para dar una respuesta útil (carrera, plan, cantidad de clases, faltas acumuladas), preguntáselos de a una pregunta por vez.
 5. Si la consulta es un trámite personal que requiere revisar el legajo o una firma, explicá lo que sepas del procedimiento y recién ahí sugerí contactar a secretaría académica.
-6. Si no tenés ningún dato sobre el tema, decilo con claridad ("No tengo información cargada sobre eso") y sugerí consultarlo en secretaría académica.
-7. Nunca inventes plazos, cantidades ni normativas.
-8. Si el alumno solo saluda, respondé el saludo en una línea y preguntale en qué lo podés ayudar, sin mencionar a secretaría.`;
+6. Si no tenés ningún dato sobre el tema, decilo con claridad ("No tengo información cargada sobre eso") y sugerí consultarlo en secretaría académica. No nombres otras oficinas, áreas, sitios web ni mails que no estén en tu base.
+7. Usá SOLO lo que está en tu base. Nunca agregues reglas, plazos, cantidades, consecuencias ni excepciones que no estén escritas ahí (por ejemplo, no afirmes si las faltas justificadas dejan de computar). Si el alumno pregunta algo así, decí que tu base no lo aclara y sugerí confirmarlo en secretaría académica.
+8. Cálculo de faltas: el máximo de faltas es el 25% del total de clases, REDONDEADO HACIA ABAJO (ejemplo: 30 clases → 7,5 → máximo 7 faltas). Mostrá la cuenta en una línea. Si la materia cuenta doble falta por clase, preguntalo antes de calcular.
+9. Si el alumno solo saluda, respondé el saludo en una línea y preguntale en qué lo podés ayudar, sin mencionar a secretaría.`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
