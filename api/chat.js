@@ -1,114 +1,134 @@
 // api/chat.js
-// Vercel Function to proxy requests to Anthropic API
-// This avoids CORS errors by making the API call server-side
+// Función de Vercel: recibe la consulta del alumno y llama a la API de Anthropic desde el servidor.
+// La API Key NO viaja desde el navegador: se configura en Vercel > Settings > Environment Variables
+// con el nombre ANTHROPIC_API_KEY.
 
-export default async function handler(req, res) {
-    // Only allow POST requests
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
+const MAX_MESSAGE_CHARS = 1000;
+const MAX_HISTORY_MESSAGES = 10;
 
-    try {
-        const { message, apiKey } = req.body;
+// ---------------------------------------------------------------------------
+// BASE DE CONOCIMIENTO
+// Cada bloque dice qué tan confiable es. El bot recibe esa etiqueta y la usa
+// para decirle al alumno qué está confirmado y qué no.
+// ---------------------------------------------------------------------------
+const KNOWLEDGE_BASE = `
+## GRUPO A — Cargado en la versión 1 del bot (todavía conviene confirmarlo con el reglamento)
 
-        // Validate inputs
-        if (!message || !apiKey) {
-            return res.status(400).json({ error: 'Missing message or apiKey' });
-        }
+Asistencia
+- La asistencia mínima requerida es del 75% en la mayoría de las materias.
+- Las faltas justificadas se presentan con documentación.
+- La inasistencia reiterada puede derivar en pérdida de regularidad.
 
-        const KNOWLEDGE_BASE = `
-# Reglamento y Consultas Frecuentes - FCE Austral
+Recuperatorios
+- Existe un recuperatorio por materia al final del cuatrimestre.
 
-## Asistencia
-- La asistencia mínima requerida es del 75% en la mayoría de las materias
-- Faltas justificadas deben presentarse con documentación
-- La inasistencia reiterada puede derivar en pérdida de regularidad
+Correlatividades
+- Las materias tienen correlatividades obligatorias.
+- Teología Moral es correlativa de Teología Dogmática.
 
-## Recuperatorios
-- Existe un recuperatorio por materia al final del cuatrimestre
-- Aplica a estudiantes que no alcanzaron la nota mínima (4/10)
-- Se puede hacer aunque hayas aprobado para mejorar nota
+Trámites
+- Los cambios de comisión se hacen en los primeros días de clase y requieren autorización de la cátedra.
+- Los certificados se solicitan en secretaría (5 a 7 días hábiles).
 
-## Correlatividades
-- Las materias tienen correlatividades obligatorias
-- Teología Moral es correlativa de Teología Dogmática
-- Algunas requieren tener otras aprobadas previamente
+## GRUPO B — Respuestas orientativas SIN fuente oficial confirmada (a verificar con secretaría o reglamento)
 
-## Trámites y Plazos
-- La inscripción a materias se realiza en períodos específicos
-- Los cambios de comisión se hacen en los primeros días de clase
-- Los certificados se solicitan en secretaría (5-7 días hábiles)
-
-## Requisitos de Título
-- Se deben tener todas las materias aprobadas
-- Se requiere realizar trabajo integrador o seminario según carrera
-- La defensa de tesis puede ser presencial o virtual
-
-## Ayudas Económicas
-- Existen becas para estudiantes con buen desempeño
-- Las becas de financiamiento están disponibles según necesidad
-- Se solicitan en períodos específicos
-
-## Horarios y Comisiones
-- Los horarios varían según materia y cuatrimestre
-- Los cambios requieren autorización de la cátedra
-- Consultar el calendario académico para períodos de inscripción
-
-## Planes de Estudio
-- Los planes vigentes están en secretaría
-- Estudiantes con planes anteriores pueden seguir ese plan
-- Las equivalencias se consultan en secretaría
-
-## Materias por Carrera
-- Digital Business y Public Accounting comparten algunas materias
-- Materias obligatorias según plan de estudios vigente
-- Consultar con secretaría sobre materias optativas y electivas
+- Faltas en materias de doble falta: si cada clase cuenta como 2 inasistencias, el margen de faltas
+  se calcula con la cantidad total de clases del cuatrimestre y las faltas acumuladas.
+- Día de campus cancelado: se presume que una jornada suspendida oficialmente no computa inasistencia.
+- Cambio de carrera dentro de la FCE para alguien que ingresó en 2025: se presume que rige el plan vigente
+  al momento del cambio, con reconocimiento de materias comunes. Debe confirmarse el plan aplicable.
+- Doble titulación: no hay una cantidad de materias por cuatrimestre confirmada.
+- Promedio de una materia: se presume que cuenta la nota del examen final, pero depende de la cátedra.
+- Cantidad de instancias para rendir un final y vigencia de la regularidad: dato NO confirmado.
+- Materias que se dictan una sola vez al año: dato NO confirmado, depende del plan y del calendario.
 `;
 
-        // Call Anthropic API from server-side
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify({
-                model: 'claude-haiku-4-5-20251001',
-                max_tokens: 500,
-                system: `Eres un asistente de atención al estudiante de la Facultad de Ciencias Empresariales de Universidad Austral.
+function cleanName(name) {
+  if (typeof name !== 'string') return 'estudiante';
+  const cleaned = name.replace(/[^\p{L}\p{N} .'-]/gu, '').trim().slice(0, 40);
+  return cleaned || 'estudiante';
+}
 
-Tu rol es responder preguntas administrativas basándote ÚNICAMENTE en este conocimiento:
+function cleanHistory(history) {
+  if (!Array.isArray(history)) return [];
+  const valid = history
+    .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
+    .map(m => ({ role: m.role, content: m.content.slice(0, 2000) }))
+    .slice(-MAX_HISTORY_MESSAGES);
+  // La conversación tiene que empezar con un mensaje del alumno.
+  while (valid.length && valid[0].role !== 'user') valid.shift();
+  return valid;
+}
 
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    console.error('Falta la variable de entorno ANTHROPIC_API_KEY');
+    return res.status(500).json({ error: 'Servidor sin configurar' });
+  }
+
+  try {
+    const { message, history, studentName } = req.body || {};
+
+    if (typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({ error: 'Missing message' });
+    }
+    if (message.length > MAX_MESSAGE_CHARS) {
+      return res.status(400).json({ error: 'Mensaje demasiado largo' });
+    }
+
+    const messages = [...cleanHistory(history), { role: 'user', content: message.trim() }];
+
+    const system = `Sos el Asistente de Atención al Estudiante de la Facultad de Ciencias Empresariales (FCE) de la Universidad Austral. Estás hablando con ${cleanName(studentName)}.
+Esta es una versión de prueba (MVP): tus respuestas son orientativas y no reemplazan a secretaría.
+
+Tu base de conocimiento:
 ${KNOWLEDGE_BASE}
 
-IMPORTANTE:
-- Si la pregunta está cubierta, responde con precisión y claridad
-- Si NO está en el conocimiento, responde: "No tengo información sobre eso. Por favor, contactate con secretaría"
-- Nunca inventes respuestas
-- Responde en español, de forma concisa y amable`,
-                messages: [{ role: 'user', content: message }]
-            })
-        });
+CÓMO RESPONDER
+1. Respondé en español rioplatense, de forma cálida y breve.
+2. Respondé con lo que sabés. No derives a secretaría por defecto: derivá solo cuando de verdad haga falta una gestión humana o cuando no tengas ningún dato útil.
+3. Decí siempre qué parte es información cargada y qué parte no está confirmada. Con información del GRUPO B, aclará que es orientativa y que conviene confirmarla.
+4. Si necesitás datos del caso para dar una respuesta útil (carrera, plan, cantidad de clases, faltas acumuladas), preguntáselos de a una pregunta por vez.
+5. Si la consulta es un trámite personal que requiere revisar el legajo o una firma, explicá lo que sepas del procedimiento y recién ahí sugerí contactar a secretaría académica.
+6. Si no tenés ningún dato sobre el tema, decilo con claridad ("No tengo información cargada sobre eso") y sugerí consultarlo en secretaría académica.
+7. Nunca inventes plazos, cantidades ni normativas.
+8. Si el alumno solo saluda, respondé el saludo en una línea y preguntale en qué lo podés ayudar, sin mencionar a secretaría.`;
 
-        // Check if response is OK
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Anthropic API error:', errorData);
-            return res.status(response.status).json({
-                error: 'API Error',
-                details: errorData.message || 'Unknown error'
-            });
-        }
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 600,
+        system,
+        messages
+      })
+    });
 
-        const data = await response.json();
-        const botResponse = data.content[0].text;
-
-        // Return the bot response
-        res.status(200).json({ response: botResponse });
-
-    } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ error: 'Internal server error', details: error.message });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Anthropic API error:', response.status, errorData);
+      return res.status(502).json({ error: 'No se pudo obtener respuesta del asistente' });
     }
+
+    const data = await response.json();
+    const botResponse = data.content && data.content[0] && data.content[0].text;
+    if (!botResponse) {
+      return res.status(502).json({ error: 'Respuesta vacía del asistente' });
+    }
+
+    return res.status(200).json({ response: botResponse });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 }
